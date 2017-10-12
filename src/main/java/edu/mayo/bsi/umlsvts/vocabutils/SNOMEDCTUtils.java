@@ -173,7 +173,7 @@ public class SNOMEDCTUtils {
             synchronized (REL) {
                 while (!REL.get()) {
                     try {
-                        REL.wait(500);
+                        REL.wait(30000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
