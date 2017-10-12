@@ -112,14 +112,14 @@ public class UMLSLookup {
                     System.out.print("Saving Database to Disk...");
                     conn.createStatement().execute("backup to " + vocabPath + "UMLS/UMLS.sqlite");
                     System.out.println("Done");
-                    synchronized (REL) {
-                        REL.set(true);
-                        REL.notifyAll();
-                    }
                 } catch (SQLException | IOException e) {
                     e.printStackTrace();
                     throw new IllegalStateException("Could not create the UMLS database");
                 }
+            }
+            synchronized (REL) {
+                REL.set(true);
+                REL.notifyAll();
             }
         } else {
             synchronized (REL) {

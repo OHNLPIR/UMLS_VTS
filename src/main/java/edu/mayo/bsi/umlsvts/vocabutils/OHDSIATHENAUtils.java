@@ -130,14 +130,14 @@ public class OHDSIATHENAUtils {
                         System.out.print("Saving Database to Disk...");
                         conn.createStatement().execute("backup to " + vocabPath + "OHDSI/ATHENA.sqlite");
                         System.out.println("Done");
-                        synchronized (REL) {
-                            REL.set(true);
-                            REL.notifyAll();
-                        }
                     }
                 } catch (SQLException | IOException e) {
                     e.printStackTrace();
                 }
+            }
+            synchronized (REL) {
+                REL.set(true);
+                REL.notifyAll();
             }
         } else { // Did not acquire lock, spin until initialization is completed
             synchronized (REL) {

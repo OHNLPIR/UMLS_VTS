@@ -160,14 +160,14 @@ public class SNOMEDCTUtils {
                         System.out.print("Saving Database to Disk...");
                         conn.createStatement().execute("backup to " + vocabPath + "SNOMEDCT_US/SNOMEDCT_US.sqlite");
                         System.out.println("Done");
-                        synchronized (REL) {
-                            REL.set(true);
-                            REL.notifyAll();
-                        }
                     }
                 } catch (SQLException | IOException e) {
                     throw new IllegalStateException("Error occured during database initialization", e);
                 }
+            }
+            synchronized (REL) {
+                REL.set(true);
+                REL.notifyAll();
             }
         } else {
             synchronized (REL) {
