@@ -6,7 +6,7 @@
 
     <groupId>edu.mayo.bsi</groupId>
     <artifactId>UMLS-VTS</artifactId>
-    <version>2017AA-SNAPSHOT</version>
+    <version>0.0.1-SNAPSHOT</version>
 
 
     <build>
