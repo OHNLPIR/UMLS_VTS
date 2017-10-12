@@ -36,7 +36,7 @@ public class OHDSIATHENAUtils {
             }
             // - Check for an OHDSI Folder
             File vocabDefFolder = new File(new File(vocabPath),"OHDSI");
-            if (!vocabDefFolder.mkdirs()) {
+            if (!vocabDefFolder.exists() && !vocabDefFolder.mkdirs()) {
                 System.out.println("Could not create OHDSI working directory!");
             }
             File[] files = vocabDefFolder.listFiles();

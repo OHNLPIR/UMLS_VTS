@@ -73,7 +73,7 @@ public class SNOMEDCTUtils {
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException("Could not find SQLITE JDBC Driver in ClassPath!");
             }
-            if (!snomedDir.mkdirs()) {
+            if (!snomedDir.exists() && !snomedDir.mkdirs()) {
                 throw new RuntimeException("Could not write to working directory!");
             }
             if (!snomedVocab.exists()) {

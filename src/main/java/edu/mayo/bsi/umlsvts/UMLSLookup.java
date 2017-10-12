@@ -62,7 +62,7 @@ public class UMLSLookup {
             File umlsDir = new File("UMLS");
             File umlsDB = new File(umlsDir, "UMLS.sqlite");
             File umlsRRF = new File(umlsDir, "MRCONSO.RRF");
-            if (!umlsDir.mkdirs()) {
+            if (!umlsDB.exists() && !umlsDir.mkdirs()) {
                 throw new IllegalStateException("Could not write to working directory!");
             }
             if (!umlsDB.exists() && !umlsRRF.exists()) {
