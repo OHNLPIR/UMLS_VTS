@@ -1,52 +1,21 @@
 package edu.mayo.bsi.umlsvts.vocabutils;
 
-import org.sqlite.SQLiteConfig;
-
-import java.io.*;
-import java.sql.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
 /**
- * Contains Utility Methods Pertaining to Operations with SNOMED Clinical Term Codes <br>
- * <br>
- * This class and all static accesses are Thread-Safe
+ * Utilities for handling OHDSI ATHENA (http://athena.ohdsi.org/) vocabularies.
  */
-public class SNOMEDCTUtils {
-    // Store relations as a flat map (as opposed to code pairs) for fast lookups up and down multiple nodes in a tree
-    private static Map<String, Collection<String>> PARENTS_TO_CHILD_MAP = new HashMap<>();
-
+public class OHDSIATHENAUtils {
     private static final AtomicBoolean LCK = new AtomicBoolean(true);
     private static final AtomicBoolean REL = new AtomicBoolean(false);
-
-    static { // Static initializers are thread-safe by default, we do not need to worry about locking
-        init();
-        String vocabPath = System.getProperty("vocab.src.dir");
-        if (!vocabPath.endsWith("/")) {
-            vocabPath = vocabPath + "/";
-        }
-        String connURL = "jdbc:sqlite:" + vocabPath + "SNOMEDCT_US/SNOMEDCT_US.sqlite";
-        try {
-            SQLiteConfig config = new SQLiteConfig();
-            config.setReadOnly(true);
-            System.out.println("Importing SNOMED Vocabulary");
-            Connection snomedConn = DriverManager.getConnection(connURL, config.toProperties());
-            System.out.println("Done");
-            Statement s = snomedConn.createStatement();
-            ResultSet rs = s.executeQuery("SELECT sourceId, destinationId FROM Relationship WHERE typeId=116680003"); // source = child, destination = parent
-            HashMap<String, Collection<String>> tempDefs = new HashMap<>();
-            while (rs.next()) {
-                tempDefs.computeIfAbsent(rs.getString("destinationId"), k -> new HashSet<>()).add(rs.getString("sourceId"));
-            }
-            for (Map.Entry<String, Collection<String>> e : tempDefs.entrySet()) {
-                String parentID = e.getKey();
-                PARENTS_TO_CHILD_MAP.put(parentID, generateChildrenCodes(parentID, tempDefs, new HashSet<>()));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
 
     /**
      * Verifies integrity of databases involved in this class, and/or creates them from csv/tsv source
@@ -65,63 +34,62 @@ public class SNOMEDCTUtils {
             if (!vocabPath.endsWith("/")) {
                 vocabPath = vocabPath + "/";
             }
-            // - SNOMEDCT for Hierarchy Checks
-            File snomedDir = new File(new File(vocabPath), "SNOMEDCT_US");
-            File snomedVocab = new File(snomedDir, "SNOMEDCT_US.sqlite");
+            // - Check for an OHDSI Folder
+            File vocabDefFolder = new File(new File(vocabPath),"OHDSI");
+            if (!vocabDefFolder.mkdirs()) {
+                System.out.println("Could not create OHDSI working directory!");
+            }
+            File[] files = vocabDefFolder.listFiles();
+            if (files == null) {
+                throw new IllegalStateException("Could not access the vocabulary definition folder");
+            }
+            if (!vocabDefFolder.exists() || files.length == 0) {
+                System.out.println("OHDSI vocabularies not present");
+                System.out.println("Please download from http://athena.ohdsi.org/ snd place in the \"OHDSI\" folder");
+                throw new IllegalStateException("Vocabulary source and database not present for generation");
+            }
+            // - Load OHDSI Vocabularies into SQLite if Necessary
+            File OHDSIVocab = new File(vocabDefFolder, "ATHENA.sqlite");
             try {
                 Class.forName("org.sqlite.JDBC"); // Force load the driver class
             } catch (ClassNotFoundException e) {
-                throw new IllegalStateException("Could not find SQLITE JDBC Driver in ClassPath!");
+                throw new IllegalStateException("Could not find SQLITE JDBC Driver in Classpath!");
             }
-            if (!snomedDir.mkdirs()) {
-                throw new RuntimeException("Could not write to working directory!");
-            }
-            if (!snomedVocab.exists()) {
+            if (!OHDSIVocab.exists()) {
                 try (Connection conn = DriverManager.getConnection("jdbc:sqlite::memory:")) {
                     if (conn != null) {
                         conn.getMetaData(); // Trigger a db creation
                         // - Load CSVs (really tab delimited in default format)
-                        File[] tsvList = snomedDir.listFiles();
-                        if (tsvList == null) {
-                            throw new RuntimeException("Tab separated definition files for SNOMEDCT database generation missing!");
+                        File[] fileLis = vocabDefFolder.listFiles();
+                        if (fileLis == null) {
+                            throw new IllegalStateException("Could not access the vocabulary definition folder");
                         }
-                        for (File tsv : tsvList) {
-                            if (!tsv.getName().endsWith(".txt")) {
+                        for (File csv : fileLis) {
+                            if (!csv.getName().endsWith(".csv")) {
                                 continue;
                             }
-                            BufferedReader reader = new BufferedReader(new FileReader(tsv));
+                            BufferedReader reader = new BufferedReader(new FileReader(csv));
                             String next;
                             // - Table Definition
                             next = reader.readLine();
                             String[] parsed = next.split("\t");
-                            String tableName = tsv.getName().substring(0, tsv.getName().length() - 4).split("_")[1];
+                            String tableName = csv.getName().substring(0, csv.getName().length() - 4);
                             StringBuilder tableBuilder = new StringBuilder("CREATE TABLE ")
-                                    .append(tableName)
-                                    .append(" (");
-                            StringBuilder indexBuilder = new StringBuilder("CREATE INDEX ")
-                                    .append(tableName)
-                                    .append("_IDX ON ")
                                     .append(tableName)
                                     .append(" (");
                             boolean flag = false;
                             for (String s : parsed) {
                                 if (flag) {
                                     tableBuilder.append(",");
-                                    indexBuilder.append(",");
                                 } else {
                                     flag = true;
                                 }
                                 tableBuilder.append(s);
                                 tableBuilder.append(" VARCHAR(255)");
-                                indexBuilder.append(s);
                             }
-                            indexBuilder.append(");");
                             tableBuilder.append(");");
                             System.out.println("Creating Table " + tableName);
                             conn.createStatement().execute(tableBuilder.toString());
-                            // - Index for performance
-                            conn.createStatement().executeUpdate(indexBuilder.toString());
-                            // - Insert values into table
                             StringBuilder insertStatementBuilder = new StringBuilder("INSERT INTO " + tableName + " VALUES (");
                             flag = false;
                             for (String ignored : parsed) {
@@ -133,6 +101,7 @@ public class SNOMEDCTUtils {
                                 insertStatementBuilder.append("?");
                             }
                             insertStatementBuilder.append(");");
+                            // - Insert values into table
                             PreparedStatement ps = conn.prepareStatement(insertStatementBuilder.toString());
                             System.out.println("Loading Table " + tableName);
                             int counter = 0;
@@ -155,10 +124,11 @@ public class SNOMEDCTUtils {
                             ps.executeBatch();
                             System.out.println("Done");
                         }
-
+                        // - Index for performance
+                        conn.createStatement().executeUpdate("CREATE INDEX CONCEPT_INDEX ON CONCEPT (CONCEPT_CODE, CONCEPT_NAME, CONCEPT_ID)");
                         // - Write In-Memory DB To File
                         System.out.print("Saving Database to Disk...");
-                        conn.createStatement().execute("backup to " + vocabPath + "SNOMEDCT_US/SNOMEDCT_US.sqlite");
+                        conn.createStatement().execute("backup to " + vocabPath + "OHDSI/ATHENA.sqlite");
                         System.out.println("Done");
                         synchronized (REL) {
                             REL.set(true);
@@ -166,10 +136,10 @@ public class SNOMEDCTUtils {
                         }
                     }
                 } catch (SQLException | IOException e) {
-                    throw new IllegalStateException("Error occured during database initialization", e);
+                    e.printStackTrace();
                 }
             }
-        } else {
+        } else { // Did not acquire lock, spin until initialization is completed
             synchronized (REL) {
                 while (!REL.get()) {
                     try {
@@ -180,30 +150,5 @@ public class SNOMEDCTUtils {
                 }
             }
         }
-    }
-
-    // Recursively generates a set containing all possible child codes of a given concept code
-    private static Set<String> generateChildrenCodes(String code, Map<String, Collection<String>> defs, Set<String> alreadyChecked) {
-        HashSet<String> ret = new HashSet<>();
-        alreadyChecked.add(code);
-        for (String s : defs.getOrDefault(code, new HashSet<>())) {
-            if (alreadyChecked.contains(s)) {
-                continue;
-            }
-            ret.addAll(generateChildrenCodes(s, defs, alreadyChecked));
-            ret.add(s);
-        }
-        return ret;
-    }
-
-    /**
-     * Checks if a given child concept is a subclass of the given parent concept
-     *
-     * @param childCode  The child concept to check
-     * @param parentCode The parent concept to check
-     * @return True if parentCode is the same as or a parent of childCode
-     */
-    public static boolean isChild(String childCode, String parentCode) {
-        return PARENTS_TO_CHILD_MAP.getOrDefault(parentCode, new HashSet<>()).contains(childCode) || childCode.equals(parentCode);
     }
 }

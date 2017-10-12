@@ -11,6 +11,7 @@ public class SnomedCTTests {
      */
     @Test
     public void testHierarchy() {
+        System.setProperty("vocab.src.dir", System.getProperty("user.dir"));
         // Test true case (direct parent)
         Assert.assertTrue(SNOMEDCTUtils.isChild("419303009", "419492006"));
         // Test reverse of true case (parent->child)
