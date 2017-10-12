@@ -158,7 +158,7 @@ public class SNOMEDCTUtils {
 
                         // - Write In-Memory DB To File
                         System.out.print("Saving Database to Disk...");
-                        conn.createStatement().execute("backup to " + vocabPath + "SNOMEDCT_US/SNOMEDCT_US.sqlite");
+                        conn.createStatement().execute("backup to \"" + vocabPath.replace('\\', '/') + "SNOMEDCT_US/SNOMEDCT_US.sqlite\"");
                         System.out.println("Done");
                     }
                 } catch (SQLException | IOException e) {

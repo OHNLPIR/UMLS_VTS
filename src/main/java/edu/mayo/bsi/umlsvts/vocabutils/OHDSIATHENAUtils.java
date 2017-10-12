@@ -128,7 +128,7 @@ public class OHDSIATHENAUtils {
                         conn.createStatement().executeUpdate("CREATE INDEX CONCEPT_INDEX ON CONCEPT (CONCEPT_CODE, CONCEPT_NAME, CONCEPT_ID)");
                         // - Write In-Memory DB To File
                         System.out.print("Saving Database to Disk...");
-                        conn.createStatement().execute("backup to " + vocabPath + "OHDSI/ATHENA.sqlite");
+                        conn.createStatement().execute("backup to \"" + vocabPath.replace('\\', '/') + "OHDSI/ATHENA.sqlite\"");
                         System.out.println("Done");
                     }
                 } catch (SQLException | IOException e) {

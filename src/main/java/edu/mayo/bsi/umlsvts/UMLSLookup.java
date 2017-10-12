@@ -59,7 +59,7 @@ public class UMLSLookup {
             if (!vocabPath.endsWith("/")) {
                 vocabPath = vocabPath + "/";
             }
-            File umlsDir = new File("UMLS");
+            File umlsDir = new File(new File(vocabPath), "UMLS");
             File umlsDB = new File(umlsDir, "UMLS.sqlite");
             File umlsRRF = new File(umlsDir, "MRCONSO.RRF");
             if (!umlsDir.exists() && !umlsDir.mkdirs()) {
@@ -110,7 +110,7 @@ public class UMLSLookup {
                     // Index for performance since we are going to be making this read only anyways
                     conn.createStatement().executeUpdate("CREATE INDEX CONCEPT_INDEX ON CONCEPT_MAPPINGS (CUI, LAT, SAB, CODE, STR)");
                     System.out.print("Saving Database to Disk...");
-                    conn.createStatement().execute("backup to " + vocabPath + "UMLS/UMLS.sqlite");
+                    conn.createStatement().execute("backup to \"" + vocabPath.replaceAll("\\\\", "/") + "UMLS/UMLS.sqlite\"");
                     System.out.println("Done");
                 } catch (SQLException | IOException e) {
                     e.printStackTrace();
