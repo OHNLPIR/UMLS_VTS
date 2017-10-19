@@ -188,7 +188,7 @@ public class UMLSLookup {
         getCuiByCodePS.setString(3, "ENG");
         if (getCuiByCodePS.execute()) {
             ResultSet rs = getSourceCodingPS.getResultSet();
-            if (rs.next()) { // UMLS->Source is a 1:n but Source->UMLS is 1:1
+            if (rs.next()) { // UMLS->Source is 1:n but Source->UMLS is 1:1
                 return rs.getString("CUI");
             }
         }
