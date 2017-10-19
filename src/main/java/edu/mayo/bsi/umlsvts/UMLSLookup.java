@@ -6,6 +6,7 @@ import org.sqlite.SQLiteConfig;
 import java.io.*;
 import java.sql.*;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -179,20 +180,21 @@ public class UMLSLookup {
      *
      * @param vocab      The source vocabulary the lookup code belongs to
      * @param sourceCode The code as defined in the source vocabulary
-     * @return The UMLS concept unique identifier related to the source vocabulary, or null if no such cui exists
+     * @return A collection of UMLS concept unique identifier related to the source vocabulary, or an empty list if no such cui exists
      */
     @SuppressWarnings("unused")
-    public String getUMLSCuiForSourceVocab(UMLSSourceVocabulary vocab, String sourceCode) throws SQLException {
+    public Collection<String> getUMLSCuiForSourceVocab(UMLSSourceVocabulary vocab, String sourceCode) throws SQLException {
         getCuiByCodePS.setString(1, sourceCode);
         getCuiByCodePS.setString(2, vocab.name());
         getCuiByCodePS.setString(3, "ENG");
+        Collection<String> ret = new LinkedList<>();
         if (getCuiByCodePS.execute()) {
             ResultSet rs = getSourceCodingPS.getResultSet();
-            if (rs.next()) { // UMLS->Source is 1:n but Source->UMLS is 1:1
-                return rs.getString("CUI");
+            while (rs.next()) {
+                ret.add(rs.getString("CUI"));
             }
         }
-        return null;
+        return ret;
     }
 
     /**
@@ -200,20 +202,21 @@ public class UMLSLookup {
      *
      * @param vocab         The vocabulary to use
      * @param sourceConcept The concept code within that vocabulary
-     * @return The preferred text within the source vocabulary, or null if concept is not found
+     * @return A set of preferred texts within the source vocabulary for the given code, or an empty set if concept is not found
      * @throws SQLException if access to the lookup database fails
      */
     @SuppressWarnings("unused")
-    public String getSourceTermPreferredText(UMLSSourceVocabulary vocab, String sourceConcept) throws SQLException {
+    public Collection<String> getSourceTermPreferredText(UMLSSourceVocabulary vocab, String sourceConcept) throws SQLException {
         getSourcePreferredPS.setString(1, vocab.name());
         getSourcePreferredPS.setString(2, sourceConcept);
+        HashSet<String> ret = new HashSet<>();
         if (getSourcePreferredPS.execute()) {
             ResultSet rs = getSourcePreferredPS.getResultSet();
             if (rs.next()) {
-                return rs.getString("STR");
+                ret.add(rs.getString("STR"));
             }
         }
-        return null;
+        return ret;
     }
 
     @SuppressWarnings("unused")
