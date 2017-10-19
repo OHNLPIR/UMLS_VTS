@@ -221,7 +221,11 @@ public class UMLSLookup {
         /**
          * SNOMED Clinical Terms - United States
          */
-        SNOMEDCT_US
+        SNOMEDCT_US,
+        /**
+         * American Medical Association - Current Procedural Terminology
+         */
+        CPT
     }
 
 }
