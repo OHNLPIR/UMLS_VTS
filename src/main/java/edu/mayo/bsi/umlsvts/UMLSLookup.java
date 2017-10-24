@@ -189,7 +189,7 @@ public class UMLSLookup {
         getCuiByCodePS.setString(3, "ENG");
         Collection<String> ret = new LinkedList<>();
         if (getCuiByCodePS.execute()) {
-            ResultSet rs = getSourceCodingPS.getResultSet();
+            ResultSet rs = getCuiByCodePS.getResultSet();
             while (rs.next()) {
                 ret.add(rs.getString("CUI"));
             }
