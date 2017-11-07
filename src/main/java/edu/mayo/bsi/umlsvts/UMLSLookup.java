@@ -140,17 +140,6 @@ public class UMLSLookup {
     }
 
     /**
-     * Creates a new {@link UMLSLookup} instance, multiple calls may be needed if objects are to be used
-     * on different threads.
-     *
-     * @return A new {@link UMLSLookup} instance
-     */
-    @SuppressWarnings({"WeakerAccess", "unused"})
-    public static UMLSLookup newLookup() {
-        return new UMLSLookup();
-    }
-
-    /**
      * Retrieves equivalent codes within the various UMLS source vocabularies corresponding to a given UMLS concept <br>
      * Results from conversion can then be further
      * manipulated with the appropriate [VOCABNAME]Utils class (e.g. {@link SNOMEDCTUtils})<br>
@@ -163,7 +152,7 @@ public class UMLSLookup {
     @SuppressWarnings({"WeakerAccess", "unused"})
     public static Collection<String> getSourceCodesForVocab(UMLSSourceVocabulary vocab, String UMLSCui) throws SQLException {
         try (Connection c = JDBC_POOL.getConnection();
-        PreparedStatement getSourceCodingPS = c.prepareStatement("SELECT CODE FROM CONCEPT_MAPPINGS WHERE CUI=? AND SAB=? AND LAT=?")) {
+             PreparedStatement getSourceCodingPS = c.prepareStatement("SELECT CODE FROM CONCEPT_MAPPINGS WHERE CUI=? AND SAB=? AND LAT=?")) {
             Collection<String> ret = new LinkedList<>();
             getSourceCodingPS.setString(1, UMLSCui);
             getSourceCodingPS.setString(2, vocab.name());
@@ -192,7 +181,7 @@ public class UMLSLookup {
     @SuppressWarnings("unused")
     public static Collection<String> getUMLSCuiForSourceVocab(UMLSSourceVocabulary vocab, String sourceCode) throws SQLException {
         try (Connection c = JDBC_POOL.getConnection();
-        PreparedStatement getCuiByCodePS = c.prepareStatement("SELECT CUI FROM CONCEPT_MAPPINGS WHERE CODE=? AND SAB=? AND LAT=?")) {
+             PreparedStatement getCuiByCodePS = c.prepareStatement("SELECT CUI FROM CONCEPT_MAPPINGS WHERE CODE=? AND SAB=? AND LAT=?")) {
             getCuiByCodePS.setString(1, sourceCode);
             getCuiByCodePS.setString(2, vocab.name());
             getCuiByCodePS.setString(3, "ENG");
@@ -220,7 +209,7 @@ public class UMLSLookup {
     @SuppressWarnings("unused")
     public static Collection<String> getSourceTermPreferredText(UMLSSourceVocabulary vocab, String sourceConcept) throws SQLException {
         try (Connection c = JDBC_POOL.getConnection();
-        PreparedStatement getSourcePreferredPS = c.prepareStatement("SELECT STR FROM CONCEPT_MAPPINGS WHERE SAB=? AND CODE=?")) {
+             PreparedStatement getSourcePreferredPS = c.prepareStatement("SELECT STR FROM CONCEPT_MAPPINGS WHERE SAB=? AND CODE=?")) {
             getSourcePreferredPS.setString(1, vocab.name());
             getSourcePreferredPS.setString(2, sourceConcept);
             HashSet<String> ret = new HashSet<>();
