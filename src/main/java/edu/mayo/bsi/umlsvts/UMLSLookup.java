@@ -1,9 +1,15 @@
 package edu.mayo.bsi.umlsvts;
 
+import com.mchange.v2.c3p0.DataSources;
 import edu.mayo.bsi.umlsvts.vocabutils.SNOMEDCTUtils;
 import org.sqlite.SQLiteConfig;
+import org.sqlite.SQLiteDataSource;
 
-import java.io.*;
+import javax.sql.DataSource;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.sql.*;
 import java.util.Collection;
 import java.util.HashSet;
@@ -13,35 +19,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * This class supplies functionality for operations on a UMLS dataset. <br>
  * <br>
- * This converter is not thread-safe, therefore a new instance should be created for each process using {@link #newLookup()} ()}
+ * All methods are thread safe
  */
 public class UMLSLookup {
 
     private static final AtomicBoolean LCK = new AtomicBoolean(true);
     private static final AtomicBoolean REL = new AtomicBoolean(false);
-    private final PreparedStatement getSourceCodingPS;
-    private final PreparedStatement getSourcePreferredPS;
-    private final PreparedStatement getCuiByCodePS;
+    private static DataSource JDBC_POOL;
 
     private UMLSLookup() {
         init();
-        String vocabDir = System.getProperty("vocab.src.dir");
-        if (!vocabDir.endsWith("/")) {
-            vocabDir = vocabDir + "/";
-        }
-        String connURL = "jdbc:sqlite:" + vocabDir + "UMLS/UMLS.sqlite";
-        try {
-            SQLiteConfig config = new SQLiteConfig();
-            config.setReadOnly(true);
-            System.out.print("Importing UMLS Vocabulary Mappings...");
-            Connection ohdsiDBConn = DriverManager.getConnection(connURL, config.toProperties());
-            System.out.println("Done");
-            getSourceCodingPS = ohdsiDBConn.prepareStatement("SELECT CODE FROM CONCEPT_MAPPINGS WHERE CUI=? AND SAB=? AND LAT=?");
-            getCuiByCodePS = ohdsiDBConn.prepareStatement("SELECT CUI FROM CONCEPT_MAPPINGS WHERE CODE=? AND SAB=? AND LAT=?");
-            getSourcePreferredPS = ohdsiDBConn.prepareStatement("SELECT STR FROM CONCEPT_MAPPINGS WHERE SAB=? AND CODE=?");
-        } catch (SQLException e) {
-            throw new RuntimeException("Could not instantiate the UMLS to Source Vocabulary Converter", e);
-        }
     }
 
 
@@ -120,6 +107,21 @@ public class UMLSLookup {
                     throw new IllegalStateException("Could not create the UMLS database");
                 }
             }
+            String vocabDir = System.getProperty("vocab.src.dir");
+            if (!vocabDir.endsWith("/")) {
+                vocabDir = vocabDir + "/";
+            }
+            String connURL = "jdbc:sqlite:" + vocabDir + "UMLS/UMLS.sqlite";
+            SQLiteConfig config = new SQLiteConfig();
+            config.setReadOnly(true);
+            SQLiteDataSource sqLiteDataSource = new SQLiteDataSource(config);
+            sqLiteDataSource.setUrl(connURL);
+            try {
+                JDBC_POOL = DataSources.pooledDataSource(sqLiteDataSource, 180); // TODO make this configurable
+            } catch (SQLException e) {
+                throw new IllegalStateException("Could not create a connection pool", e);
+            }
+
             synchronized (REL) {
                 REL.set(true);
                 REL.notifyAll();
@@ -159,18 +161,23 @@ public class UMLSLookup {
      * @throws SQLException if access to the lookup database fails
      */
     @SuppressWarnings({"WeakerAccess", "unused"})
-    public Collection<String> getSourceCodesForVocab(UMLSSourceVocabulary vocab, String UMLSCui) throws SQLException {
-        Collection<String> ret = new LinkedList<>();
-        getSourceCodingPS.setString(1, UMLSCui);
-        getSourceCodingPS.setString(2, vocab.name());
-        getSourceCodingPS.setString(3, "ENG");
-        if (getSourceCodingPS.execute()) {
-            ResultSet rs = getSourceCodingPS.getResultSet();
-            while (rs.next()) {
-                ret.add(rs.getString("CODE"));
+    public static Collection<String> getSourceCodesForVocab(UMLSSourceVocabulary vocab, String UMLSCui) throws SQLException {
+        try (Connection c = JDBC_POOL.getConnection();
+        PreparedStatement getSourceCodingPS = c.prepareStatement("SELECT CODE FROM CONCEPT_MAPPINGS WHERE CUI=? AND SAB=? AND LAT=?")) {
+            Collection<String> ret = new LinkedList<>();
+            getSourceCodingPS.setString(1, UMLSCui);
+            getSourceCodingPS.setString(2, vocab.name());
+            getSourceCodingPS.setString(3, "ENG");
+            if (getSourceCodingPS.execute()) {
+                ResultSet rs = getSourceCodingPS.getResultSet();
+                while (rs.next()) {
+                    ret.add(rs.getString("CODE"));
+                }
             }
+            getSourceCodingPS.close();
+            c.close();
+            return ret;
         }
-        return ret;
     }
 
     /**
@@ -183,18 +190,23 @@ public class UMLSLookup {
      * @return A collection of UMLS concept unique identifier related to the source vocabulary, or an empty list if no such cui exists
      */
     @SuppressWarnings("unused")
-    public Collection<String> getUMLSCuiForSourceVocab(UMLSSourceVocabulary vocab, String sourceCode) throws SQLException {
-        getCuiByCodePS.setString(1, sourceCode);
-        getCuiByCodePS.setString(2, vocab.name());
-        getCuiByCodePS.setString(3, "ENG");
-        Collection<String> ret = new LinkedList<>();
-        if (getCuiByCodePS.execute()) {
-            ResultSet rs = getCuiByCodePS.getResultSet();
-            while (rs.next()) {
-                ret.add(rs.getString("CUI"));
+    public static Collection<String> getUMLSCuiForSourceVocab(UMLSSourceVocabulary vocab, String sourceCode) throws SQLException {
+        try (Connection c = JDBC_POOL.getConnection();
+        PreparedStatement getCuiByCodePS = c.prepareStatement("SELECT CUI FROM CONCEPT_MAPPINGS WHERE CODE=? AND SAB=? AND LAT=?")) {
+            getCuiByCodePS.setString(1, sourceCode);
+            getCuiByCodePS.setString(2, vocab.name());
+            getCuiByCodePS.setString(3, "ENG");
+            Collection<String> ret = new LinkedList<>();
+            if (getCuiByCodePS.execute()) {
+                ResultSet rs = getCuiByCodePS.getResultSet();
+                while (rs.next()) {
+                    ret.add(rs.getString("CUI"));
+                }
             }
+            getCuiByCodePS.close();
+            c.close();
+            return ret;
         }
-        return ret;
     }
 
     /**
@@ -206,17 +218,20 @@ public class UMLSLookup {
      * @throws SQLException if access to the lookup database fails
      */
     @SuppressWarnings("unused")
-    public Collection<String> getSourceTermPreferredText(UMLSSourceVocabulary vocab, String sourceConcept) throws SQLException {
-        getSourcePreferredPS.setString(1, vocab.name());
-        getSourcePreferredPS.setString(2, sourceConcept);
-        HashSet<String> ret = new HashSet<>();
-        if (getSourcePreferredPS.execute()) {
-            ResultSet rs = getSourcePreferredPS.getResultSet();
-            if (rs.next()) {
-                ret.add(rs.getString("STR"));
+    public static Collection<String> getSourceTermPreferredText(UMLSSourceVocabulary vocab, String sourceConcept) throws SQLException {
+        try (Connection c = JDBC_POOL.getConnection();
+        PreparedStatement getSourcePreferredPS = c.prepareStatement("SELECT STR FROM CONCEPT_MAPPINGS WHERE SAB=? AND CODE=?")) {
+            getSourcePreferredPS.setString(1, vocab.name());
+            getSourcePreferredPS.setString(2, sourceConcept);
+            HashSet<String> ret = new HashSet<>();
+            if (getSourcePreferredPS.execute()) {
+                ResultSet rs = getSourcePreferredPS.getResultSet();
+                if (rs.next()) {
+                    ret.add(rs.getString("STR"));
+                }
             }
+            return ret;
         }
-        return ret;
     }
 
     @SuppressWarnings("unused")
@@ -228,7 +243,15 @@ public class UMLSLookup {
         /**
          * American Medical Association - Current Procedural Terminology
          */
-        CPT
+        CPT,
+        /**
+         * International Classification of Diseases, Ninth Revision, Clinical Modification
+         */
+        ICD9CM,
+        /**
+         * International Classification of Diseases, Tenth Revision, Clinical Modification
+         */
+        ICD10CM
     }
 
 }
