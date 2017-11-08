@@ -152,11 +152,10 @@ public class UMLSLookup {
     @SuppressWarnings({"WeakerAccess", "unused"})
     public static Collection<String> getSourceCodesForVocab(UMLSSourceVocabulary vocab, String UMLSCui) throws SQLException {
         try (Connection c = JDBC_POOL.getConnection();
-             PreparedStatement getSourceCodingPS = c.prepareStatement("SELECT CODE FROM CONCEPT_MAPPINGS WHERE CUI=? AND SAB=? AND LAT=?")){
+             PreparedStatement getSourceCodingPS = c.prepareStatement("SELECT CODE FROM CONCEPT_MAPPINGS WHERE CUI=? AND SAB=?")){
             Collection<String> ret = new LinkedList<>();
             getSourceCodingPS.setString(1, UMLSCui);
             getSourceCodingPS.setString(2, vocab.name());
-            getSourceCodingPS.setString(3, "ENG");
             if (getSourceCodingPS.execute()) {
                 ResultSet rs = getSourceCodingPS.getResultSet();
                 while (rs.next()) {
@@ -179,10 +178,9 @@ public class UMLSLookup {
     @SuppressWarnings("unused")
     public static Collection<String> getUMLSCuiForSourceVocab(UMLSSourceVocabulary vocab, String sourceCode) throws SQLException {
         try (Connection c = JDBC_POOL.getConnection();
-             PreparedStatement getCuiByCodePS = c.prepareStatement("SELECT CUI FROM CONCEPT_MAPPINGS WHERE CODE=? AND SAB=? AND LAT=?")) {
+             PreparedStatement getCuiByCodePS = c.prepareStatement("SELECT CUI FROM CONCEPT_MAPPINGS WHERE CODE=? AND SAB=?")) {
             getCuiByCodePS.setString(1, sourceCode);
             getCuiByCodePS.setString(2, vocab.name());
-            getCuiByCodePS.setString(3, "ENG");
             Collection<String> ret = new LinkedList<>();
             if (getCuiByCodePS.execute()) {
                 ResultSet rs = getCuiByCodePS.getResultSet();
