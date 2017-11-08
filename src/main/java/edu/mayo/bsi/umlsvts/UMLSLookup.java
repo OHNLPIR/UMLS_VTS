@@ -27,7 +27,7 @@ public class UMLSLookup {
     private static final AtomicBoolean REL = new AtomicBoolean(false);
     private static DataSource JDBC_POOL;
 
-    private UMLSLookup() {
+    static {
         init();
     }
 
@@ -152,7 +152,7 @@ public class UMLSLookup {
     @SuppressWarnings({"WeakerAccess", "unused"})
     public static Collection<String> getSourceCodesForVocab(UMLSSourceVocabulary vocab, String UMLSCui) throws SQLException {
         try (Connection c = JDBC_POOL.getConnection();
-             PreparedStatement getSourceCodingPS = c.prepareStatement("SELECT CODE FROM CONCEPT_MAPPINGS WHERE CUI=? AND SAB=? AND LAT=?")) {
+             PreparedStatement getSourceCodingPS = c.prepareStatement("SELECT CODE FROM CONCEPT_MAPPINGS WHERE CUI=? AND SAB=? AND LAT=?")){
             Collection<String> ret = new LinkedList<>();
             getSourceCodingPS.setString(1, UMLSCui);
             getSourceCodingPS.setString(2, vocab.name());
@@ -163,8 +163,6 @@ public class UMLSLookup {
                     ret.add(rs.getString("CODE"));
                 }
             }
-            getSourceCodingPS.close();
-            c.close();
             return ret;
         }
     }
@@ -192,8 +190,6 @@ public class UMLSLookup {
                     ret.add(rs.getString("CUI"));
                 }
             }
-            getCuiByCodePS.close();
-            c.close();
             return ret;
         }
     }
