@@ -10,6 +10,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
@@ -99,13 +101,16 @@ public class Athena {
 
     static {
         // Spin up database creation in a new thread
-        Executors.newSingleThreadExecutor().submit(() -> {
-            try {
-                initDB();
-            } catch (Throwable e) {
-                // Hard exit on error to prevent issue being missed
-                e.printStackTrace();
-                System.exit(1);
+        Executors.newSingleThreadExecutor().submit(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    initDB();
+                } catch (Throwable e) {
+                    // Hard exit on error to prevent issue being missed
+                    e.printStackTrace();
+                    System.exit(1);
+                }
             }
         });
     }
@@ -216,7 +221,8 @@ public class Athena {
                             LOGGER.info("Done");
                         }
                         // - Index for performance
-                        conn.createStatement().executeUpdate("CREATE INDEX CONCEPT_INDEX ON CONCEPT (CONCEPT_CODE, CONCEPT_NAME, CONCEPT_ID)");
+                        conn.createStatement().executeUpdate("CREATE INDEX VOCAB_CODE_IDX ON CONCEPT (VOCABULARY_ID, CONCEPT_CODE)");
+                        conn.createStatement().executeUpdate("CREATE INDEX VOCAB_NAME_IDX ON CONCEPT (VOCABULARY_ID, CONCEPT_NAME)");
                         // - Write In-Memory DB To File
                         LOGGER.info("Saving Database to Disk...");
                         conn.createStatement().execute("backup to \"" + vocabPath.replace('\\', '/') + "OHDSI/ATHENA.sqlite\"");
@@ -233,7 +239,10 @@ public class Athena {
                 String url = "jdbc:sqlite:" + vocabPath.replace('\\', '/') + "OHDSI/ATHENA.sqlite";
                 SQLiteDataSource sqLiteDataSource = new SQLiteDataSource(config);
                 sqLiteDataSource.setUrl(url);
-                JDBC_DATA_SOURCE = DataSources.pooledDataSource(sqLiteDataSource, 180); // TODO configurable
+                Map<Object, Object> overrides = new HashMap<>();
+                overrides.put("maxPoolSize", 50);
+                overrides.put("maxStatements", 180);
+                JDBC_DATA_SOURCE = DataSources.pooledDataSource(sqLiteDataSource, overrides); // TODO configurable
                 LOGGER.info("Done");
             } catch (SQLException e) {
                 throw new RuntimeException(e);
@@ -242,7 +251,7 @@ public class Athena {
                 REL.set(true);
                 REL.notifyAll();
             }
-        } else if (!REL.get()){ // Check init state, if not init, did not acquire lock, spin until initialization is completed
+        } else if (!REL.get()) { // Check init state, if not init, did not acquire lock, spin until initialization is completed
             synchronized (REL) {
                 while (!REL.get()) {
                     try {
@@ -257,7 +266,8 @@ public class Athena {
 
     /**
      * Gets the equivalent OHDSI concept ID for the provided code and source vocabulary
-     * @param code The code to lookup
+     *
+     * @param code       The code to lookup
      * @param vocabulary The vocabulary defining the parameter code
      * @return The corresponding OHDSI concept ID, or -99999 if not found
      * @throws SQLException if an error occurs during lookup
@@ -268,33 +278,32 @@ public class Athena {
 
     /**
      * Gets the equivalent OHDSI concept ID for the provided code and source vocabulary
-     * @param code The code to lookup
+     *
+     * @param code       The code to lookup
      * @param vocabulary The vocabulary name of the vocabulary defining the parameter code
      * @return The corresponding OHDSI concept ID, or -99999 if not found
      * @throws SQLException if an error occurs during lookup
      */
     public static int getOHDSIConceptIDforSourceVocabCode(String code, String vocabulary) throws SQLException {
         initDB();
-        Connection conn = JDBC_DATA_SOURCE
-                .getConnection();
-        PreparedStatement CONCEPT_LOOKUP_STATEMENT = conn
-                .prepareStatement("SELECT CONCEPT_ID FROM CONCEPT WHERE VOCABULARY_ID=? AND CONCEPT_CODE=?");
-        CONCEPT_LOOKUP_STATEMENT.setString(1, code);
-        CONCEPT_LOOKUP_STATEMENT.setString(2, vocabulary);
-        ResultSet rs = CONCEPT_LOOKUP_STATEMENT.executeQuery();
-        if (rs.next()) {
-            int ret = Integer.valueOf(rs.getString("CONCEPT_ID"));
-            conn.close();
-            return ret;
-        } else {
-            conn.close();
-            return -99999;
+        try (Connection conn = JDBC_DATA_SOURCE.getConnection()) {
+            PreparedStatement CONCEPT_LOOKUP_STATEMENT = conn
+                    .prepareStatement("SELECT CONCEPT_ID FROM CONCEPT WHERE VOCABULARY_ID=? AND CONCEPT_CODE=?");
+            CONCEPT_LOOKUP_STATEMENT.setString(1, code);
+            CONCEPT_LOOKUP_STATEMENT.setString(2, vocabulary);
+            ResultSet rs = CONCEPT_LOOKUP_STATEMENT.executeQuery();
+            if (rs.next()) {
+                return Integer.valueOf(rs.getString("CONCEPT_ID"));
+            } else {
+                return -99999;
+            }
         }
     }
 
     /**
      * Gets the equivalent OHDSI concept ID for the provided concept name and source vocabulary
-     * @param name The name to lookup
+     *
+     * @param name       The name to lookup
      * @param vocabulary The vocabulary of the vocabulary defining the parameter code
      * @return The corresponding OHDSI concept ID, or -99999 if not found
      * @throws SQLException if an error occurs during lookup
@@ -305,26 +314,25 @@ public class Athena {
 
     /**
      * Gets the equivalent OHDSI concept ID for the provided concept name and source vocabulary
-     * @param name The name to lookup
+     *
+     * @param name       The name to lookup
      * @param vocabulary The vocabulary name of the vocabulary defining the parameter code
      * @return The corresponding OHDSI concept ID, or -99999 if not found
      * @throws SQLException if an error occurs during lookup
      */
     public static int getOHDSIConceptIDforSourceVocabName(String name, String vocabulary) throws SQLException {
         initDB();
-        Connection conn = JDBC_DATA_SOURCE.getConnection();
-        PreparedStatement CONCEPT_LOOKUP_STATEMENT = conn
-                .prepareStatement("SELECT CONCEPT_ID FROM CONCEPT WHERE VOCABULARY_ID=? AND CONCEPT_NAME LIKE ?");
-        CONCEPT_LOOKUP_STATEMENT.setString(1, name);
-        CONCEPT_LOOKUP_STATEMENT.setString(2, vocabulary);
-        ResultSet rs = CONCEPT_LOOKUP_STATEMENT.executeQuery();
-        if (rs.next()) {
-            int ret = Integer.valueOf(rs.getString("CONCEPT_ID"));
-            conn.close();
-            return ret;
-        } else {
-            conn.close();
-            return -99999;
+        try (Connection conn = JDBC_DATA_SOURCE.getConnection()) {
+            PreparedStatement CONCEPT_LOOKUP_STATEMENT = conn
+                    .prepareStatement("SELECT CONCEPT_ID FROM CONCEPT WHERE VOCABULARY_ID=? AND CONCEPT_NAME LIKE ?");
+            CONCEPT_LOOKUP_STATEMENT.setString(1, name);
+            CONCEPT_LOOKUP_STATEMENT.setString(2, vocabulary);
+            ResultSet rs = CONCEPT_LOOKUP_STATEMENT.executeQuery();
+            if (rs.next()) {
+                return Integer.valueOf(rs.getString("CONCEPT_ID"));
+            } else {
+                return -99999;
+            }
         }
     }
 }
