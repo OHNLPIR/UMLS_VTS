@@ -1,7 +1,6 @@
 package edu.mayo.bsi.umlsvts;
 
 import com.mchange.v2.c3p0.DataSources;
-import edu.mayo.bsi.umlsvts.vocabutils.SNOMEDCTUtils;
 import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteDataSource;
 
@@ -98,7 +97,9 @@ public class UMLSLookup {
                     }
                     System.out.println("Done");
                     // Index for performance since we are going to be making this read only anyways
-                    conn.createStatement().executeUpdate("CREATE INDEX CONCEPT_INDEX ON CONCEPT_MAPPINGS (CUI, LAT, SAB, CODE, STR)");
+                    conn.createStatement().executeUpdate("CREATE INDEX CONCEPT_INDEX_BY_CUI ON CONCEPT_MAPPINGS (CUI, SAB)");
+                    conn.createStatement().executeUpdate("CREATE INDEX CONCEPT_INDEX_BY_CODE ON CONCEPT_MAPPINGS (CODE, SAB)");
+
                     System.out.print("Saving Database to Disk...");
                     conn.createStatement().execute("backup to \"" + vocabPath.replaceAll("\\\\", "/") + "UMLS/UMLS.sqlite\"");
                     System.out.println("Done");
@@ -203,7 +204,7 @@ public class UMLSLookup {
     @SuppressWarnings("unused")
     public static Collection<String> getSourceTermPreferredText(UMLSSourceVocabulary vocab, String sourceConcept) throws SQLException {
         try (Connection c = JDBC_POOL.getConnection();
-             PreparedStatement getSourcePreferredPS = c.prepareStatement("SELECT STR FROM CONCEPT_MAPPINGS WHERE SAB=? AND CODE=?")) {
+             PreparedStatement getSourcePreferredPS = c.prepareStatement("SELECT STR FROM CONCEPT_MAPPINGS WHERE CODE=? AND SAB=?")) {
             getSourcePreferredPS.setString(1, vocab.name());
             getSourcePreferredPS.setString(2, sourceConcept);
             HashSet<String> ret = new HashSet<>();
