@@ -1,4 +1,4 @@
-package edu.mayo.bsi.umlsvts;
+package edu.mayo.bsi.nlp.vts;
 
 import com.mchange.v2.c3p0.DataSources;
 import org.sqlite.SQLiteConfig;
@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <br>
  * All methods are thread safe
  */
-public class UMLSLookup {
+public class UMLS {
 
     private static final AtomicBoolean LCK = new AtomicBoolean(true);
     private static final AtomicBoolean REL = new AtomicBoolean(false);
@@ -143,7 +143,7 @@ public class UMLSLookup {
     /**
      * Retrieves equivalent codes within the various UMLS source vocabularies corresponding to a given UMLS concept <br>
      * Results from conversion can then be further
-     * manipulated with the appropriate [VOCABNAME]Utils class (e.g. {@link SNOMEDCTUtils})<br>
+     * manipulated with the appropriate [VOCABNAME]Utils class (e.g. {@link SNOMEDCT})<br>
      *
      * @param vocab   The vocabulary to retrieve
      * @param UMLSCui The UMLS cui to retrieve equivalent codes within the supplied source vocabulary for
@@ -205,8 +205,8 @@ public class UMLSLookup {
     public static Collection<String> getSourceTermPreferredText(UMLSSourceVocabulary vocab, String sourceConcept) throws SQLException {
         try (Connection c = JDBC_POOL.getConnection();
              PreparedStatement getSourcePreferredPS = c.prepareStatement("SELECT STR FROM CONCEPT_MAPPINGS WHERE CODE=? AND SAB=?")) {
-            getSourcePreferredPS.setString(1, vocab.name());
-            getSourcePreferredPS.setString(2, sourceConcept);
+            getSourcePreferredPS.setString(1, sourceConcept);
+            getSourcePreferredPS.setString(2, vocab.name());
             HashSet<String> ret = new HashSet<>();
             if (getSourcePreferredPS.execute()) {
                 ResultSet rs = getSourcePreferredPS.getResultSet();

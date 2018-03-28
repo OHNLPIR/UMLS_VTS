@@ -1,4 +1,4 @@
-package edu.mayo.bsi.umlsvts.vocabutils;
+package edu.mayo.bsi.nlp.vts;
 
 import com.mchange.v2.c3p0.DataSources;
 import org.sqlite.SQLiteConfig;
@@ -289,8 +289,8 @@ public class Athena {
         try (Connection conn = JDBC_DATA_SOURCE.getConnection()) {
             PreparedStatement CONCEPT_LOOKUP_STATEMENT = conn
                     .prepareStatement("SELECT CONCEPT_ID FROM CONCEPT WHERE VOCABULARY_ID=? AND CONCEPT_CODE=?");
-            CONCEPT_LOOKUP_STATEMENT.setString(1, code);
-            CONCEPT_LOOKUP_STATEMENT.setString(2, vocabulary);
+            CONCEPT_LOOKUP_STATEMENT.setString(2, code);
+            CONCEPT_LOOKUP_STATEMENT.setString(1, vocabulary);
             ResultSet rs = CONCEPT_LOOKUP_STATEMENT.executeQuery();
             if (rs.next()) {
                 return Integer.valueOf(rs.getString("CONCEPT_ID"));
@@ -324,9 +324,9 @@ public class Athena {
         initDB();
         try (Connection conn = JDBC_DATA_SOURCE.getConnection()) {
             PreparedStatement CONCEPT_LOOKUP_STATEMENT = conn
-                    .prepareStatement("SELECT CONCEPT_ID FROM CONCEPT WHERE VOCABULARY_ID=? AND CONCEPT_NAME LIKE ?");
-            CONCEPT_LOOKUP_STATEMENT.setString(1, name);
-            CONCEPT_LOOKUP_STATEMENT.setString(2, vocabulary);
+                    .prepareStatement("SELECT CONCEPT_ID FROM CONCEPT WHERE VOCABULARY_ID=? AND CONCEPT_NAME=?");
+            CONCEPT_LOOKUP_STATEMENT.setString(2, name);
+            CONCEPT_LOOKUP_STATEMENT.setString(1, vocabulary);
             ResultSet rs = CONCEPT_LOOKUP_STATEMENT.executeQuery();
             if (rs.next()) {
                 return Integer.valueOf(rs.getString("CONCEPT_ID"));

@@ -1,4 +1,4 @@
-package edu.mayo.bsi.umlsvts.vocabutils;
+package edu.mayo.bsi.nlp.vts;
 
 import org.sqlite.SQLiteConfig;
 
@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <br>
  * This class and all static accesses are Thread-Safe
  */
-public class SNOMEDCTUtils {
+public class SNOMEDCT {
     // Store relations as a flat map (as opposed to code pairs) for fast lookups up and down multiple nodes in a tree
     private static Map<String, Collection<String>> PARENTS_TO_CHILD_MAP = new HashMap<>();
 
