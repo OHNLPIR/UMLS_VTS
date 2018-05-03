@@ -41,9 +41,8 @@ public class UMLS {
         if (LCK.getAndSet(false)) { // Acquired lock
             String vocabPath = System.getProperty("vocab.src.dir");
             if (vocabPath == null) {
-                System.out.println("Please provide the full path to the directory containing vocabulary definitions using" +
-                        "-Dvocab.src.dir");
-                throw new IllegalStateException("-Dvocab.src.dir not set");
+                vocabPath = System.getProperty("user.dir");
+                System.out.println("-Dvocab.src.dir not set, defaulting to current working directory: " + vocabPath);
             }
             if (!vocabPath.endsWith("/")) {
                 vocabPath = vocabPath + "/";
@@ -235,7 +234,11 @@ public class UMLS {
         /**
          * International Classification of Diseases, Tenth Revision, Clinical Modification
          */
-        ICD10CM
+        ICD10CM,
+        /**
+         * Medical Dictionary for Regulatory Activities
+         */
+        MDR
     }
 
 }
