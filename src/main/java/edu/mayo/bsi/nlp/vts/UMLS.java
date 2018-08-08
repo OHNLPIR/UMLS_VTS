@@ -107,7 +107,7 @@ public class UMLS {
                     throw new IllegalStateException("Could not create the UMLS database");
                 }
             }
-            String vocabDir = System.getProperty("vocab.src.dir");
+            String vocabDir = vocabPath;
             if (!vocabDir.endsWith("/")) {
                 vocabDir = vocabDir + "/";
             }
@@ -238,7 +238,11 @@ public class UMLS {
         /**
          * Medical Dictionary for Regulatory Activities
          */
-        MDR
+        MDR,
+        /**
+         * RXNORM
+         */
+        RXNORM
     }
 
 }
